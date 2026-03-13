@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phosphor-icons/1.4.2/umd/index.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy-900:#0a1628; --navy-800:#0f2044; --navy-700:#162d5e;
+      --navy-600:#1a3a7a; --navy-500:#1e4799; --navy-400:#2557c7;
+      --slate-100:#f0f4f8; --slate-200:#e2e9f0; --slate-300:#c8d5e3;
+      --slate-400:#94a8be; --slate-500:#5e7a96; --slate-600:#3d5a72;
+      --gold-400:#f0b429; --gold-500:#e09c10;
+      --green-400:#22c55e; --green-100:#dcfce7;
+      --red-400:#ef4444;   --red-100:#fee2e2;
+      --orange-100:#ffedd5;
+      --white:#ffffff;
+      --shadow:0 4px 24px rgba(10,22,40,0.10);
+      --shadow-hover:0 8px 40px rgba(10,22,40,0.18);
+      --radius:16px; --radius-sm:10px;
+      --sidebar:260px;
+      --transition:0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--slate-100); color:var(--navy-900); min-height:100vh; -webkit-font-smoothing:antialiased; }
+    a { color:var(--navy-400); text-decoration:none; }
+
+    /* ── Session Timeout Modal ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(10,22,40,0.65); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; z-index:10000; }
+    .modal-overlay.hidden { display:none; }
+    .modal-card { background:var(--white); border-radius:var(--radius); padding:40px 36px; max-width:400px; width:90%; text-align:center; box-shadow:0 24px 80px rgba(10,22,40,0.3); animation:scaleIn .3s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes scaleIn { from{transform:scale(0.85);opacity:0} to{transform:scale(1);opacity:1} }
+    .modal-icon { width:68px;height:68px; background:linear-gradient(135deg,#fef3c7,#fde68a); border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:2rem;color:var(--gold-500); margin:0 auto 20px; }
+    .modal-card h3 { font-size:1.3rem;font-weight:700;margin-bottom:10px; }
+    .modal-card p  { color:var(--slate-500);font-size:.94rem;line-height:1.6;margin-bottom:28px; }
+    #session-countdown { font-weight:700;color:#f97316; }
+    .modal-actions { display:flex;gap:12px;justify-content:center; }
+    .btn-modal-secondary { padding:10px 22px;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;font-family:'DM Sans',sans-serif;background:var(--slate-200);color:var(--slate-600);cursor:pointer;border:none;transition:background var(--transition); }
+    .btn-modal-secondary:hover { background:var(--slate-300); }
+    .btn-modal-primary { padding:10px 22px;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,var(--navy-500),var(--navy-700));color:var(--white);cursor:pointer;border:none;transition:all var(--transition); }
+    .btn-modal-primary:hover { transform:translateY(-1px);box-shadow:0 4px 16px rgba(30,71,153,.4); }
+
+    /* ── SLIDE PANEL ── */
+    .panel-backdrop { position:fixed;inset:0;background:rgba(10,22,40,0.5);backdrop-filter:blur(4px);z-index:500;opacity:0;pointer-events:none;transition:opacity .3s ease; }
+    .panel-backdrop.active { opacity:1;pointer-events:all; }
+    .slide-panel { position:fixed;top:0;right:0;width:480px;max-width:100vw;height:100vh;background:var(--white);z-index:501;transform:translateX(100%);transition:transform .38s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;box-shadow:-8px 0 48px rgba(10,22,40,0.22); }
+    .slide-panel.active { transform:translateX(0); }
+    .panel-head { display:flex;align-items:center;justify-content:space-between;padding:24px 28px;border-bottom:1px solid var(--slate-200); }
+    .panel-head-left { display:flex;align-items:center;gap:14px; }
+    .panel-head-icon { width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem; }
+    .panel-head h2 { font-size:1.2rem;font-weight:700;color:var(--navy-900); }
+    .panel-head p  { font-size:.8rem;color:var(--slate-400);margin-top:1px; }
+    .panel-close { width:36px;height:36px;border-radius:10px;border:none;background:var(--slate-100);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--slate-500);transition:all var(--transition); }
+    .panel-close:hover { background:var(--slate-200);color:var(--navy-700); }
+    .panel-body { flex:1;overflow-y:auto;padding:28px; }
+    .panel-footer { padding:20px 28px;border-top:1px solid var(--slate-200);display:flex;gap:12px; }
+
+    /* ── Panel Form Elements ── */
+    .form-section { margin-bottom:24px; }
+    .form-section-title { font-size:.72rem;font-weight:700;color:var(--slate-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+    .form-section-title::after { content:'';flex:1;height:1px;background:var(--slate-200); }
+    .field { margin-bottom:16px; }
+    .field label { display:block;font-size:.83rem;font-weight:600;color:var(--navy-700);margin-bottom:7px; }
+    .field-wrap { position:relative;display:flex;align-items:center; }
+    .field-ico { position:absolute;left:13px;font-size:1rem;color:var(--slate-400);pointer-events:none; }
+    .field-wrap:focus-within .field-ico { color:var(--navy-500); }
+    .field input,.field select,.field textarea {
+      width:100%;padding:11px 13px 11px 40px;border:2px solid var(--slate-200);border-radius:10px;
+      font-size:.9rem;font-family:'DM Sans',sans-serif;color:var(--navy-900);background:var(--white);transition:all .22s;
+    }
+    .field input:focus,.field select:focus,.field textarea:focus { outline:none;border-color:var(--navy-500);box-shadow:0 0 0 4px rgba(30,71,153,.1); }
+    .field input::placeholder,.field textarea::placeholder { color:var(--slate-300); }
+    .field select { appearance:none;cursor:pointer;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a8be' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;
+    }
+    .field textarea { resize:vertical;min-height:90px;padding-top:11px; }
+    .field-note { font-size:.75rem;color:var(--slate-400);margin-top:5px; }
+    .field-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+
+    /* amount display */
+    .amount-display { background:linear-gradient(135deg,var(--navy-900),var(--navy-700));border-radius:14px;padding:20px 22px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between; }
+    .amount-display .lbl { font-size:.75rem;color:rgba(255,255,255,.6);font-weight:500;text-transform:uppercase;letter-spacing:.06em; }
+    .amount-display .val { font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--white); }
+
+    /* Info row */
+    .info-row { display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--slate-100);border-radius:10px;margin-bottom:10px; }
+    .info-row .key { font-size:.83rem;color:var(--slate-500);font-weight:500; }
+    .info-row .val { font-size:.88rem;font-weight:700;color:var(--navy-800); }
+
+    /* Chip tabs */
+    .tab-row { display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap; }
+    .chip { padding:7px 16px;border-radius:999px;font-size:.82rem;font-weight:600;border:2px solid var(--slate-200);background:var(--white);color:var(--slate-500);cursor:pointer;transition:all var(--transition); }
+    .chip.active { background:var(--navy-500);border-color:var(--navy-500);color:var(--white); }
+    .chip:hover:not(.active) { border-color:var(--navy-400);color:var(--navy-500); }
+
+    /* Statement rows */
+    .stmt-item { display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--white);border-radius:12px;margin-bottom:10px;border:2px solid var(--slate-200);transition:all var(--transition);cursor:pointer; }
+    .stmt-item:hover { border-color:var(--navy-400);box-shadow:0 4px 16px rgba(30,71,153,.1); }
+    .stmt-icon { width:42px;height:42px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--navy-500);flex-shrink:0; }
+    .stmt-info { flex:1; }
+    .stmt-name { font-size:.9rem;font-weight:700;color:var(--navy-900); }
+    .stmt-sub  { font-size:.76rem;color:var(--slate-400);margin-top:2px; }
+    .stmt-dl   { font-size:.85rem;color:var(--navy-500);font-weight:600; }
+
+    /* Settings items */
+    .setting-item { display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--slate-200); }
+    .setting-item:last-child { border-bottom:none; }
+    .setting-left { display:flex;align-items:center;gap:14px; }
+    .setting-ico { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0; }
+    .setting-name { font-size:.9rem;font-weight:600;color:var(--navy-900); }
+    .setting-desc { font-size:.76rem;color:var(--slate-400);margin-top:2px; }
+    /* toggle switch */
+    .toggle { position:relative;width:44px;height:24px;flex-shrink:0; }
+    .toggle input { opacity:0;width:0;height:0; }
+    .toggle-track { position:absolute;inset:0;background:var(--slate-300);border-radius:999px;cursor:pointer;transition:background .22s; }
+    .toggle input:checked + .toggle-track { background:var(--navy-500); }
+    .toggle-track::after { content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .22s;box-shadow:0 1px 4px rgba(0,0,0,.2); }
+    .toggle input:checked + .toggle-track::after { transform:translateX(20px); }
+
+    /* Biller card grid */
+    .biller-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px; }
+    .biller-card { border:2px solid var(--slate-200);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all var(--transition); }
+    .biller-card:hover,.biller-card.selected { border-color:var(--navy-400);background:#eff6ff; }
+    .biller-card .b-ico { width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0; }
+    .biller-card .b-name { font-size:.85rem;font-weight:600;color:var(--navy-800); }
+    .biller-card .b-type { font-size:.72rem;color:var(--slate-400); }
+
+    /* Buttons */
+    .btn-primary { flex:1;padding:13px;background:linear-gradient(135deg,var(--navy-500),var(--navy-700));color:var(--white);border:none;border-radius:10px;font-size:.95rem;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:8px; }
+    .btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,71,153,.4); }
+    .btn-secondary { flex:1;padding:13px;background:var(--slate-200);color:var(--slate-600);border:none;border-radius:10px;font-size:.95rem;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all var(--transition); }
+    .btn-secondary:hover { background:var(--slate-300); }
+    .btn-danger { flex:1;padding:13px;background:rgba(239,68,68,.1);color:var(--red-400);border:2px solid rgba(239,68,68,.2);border-radius:10px;font-size:.95rem;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all var(--transition); }
+    .btn-danger:hover { background:rgba(239,68,68,.18); }
+
+    /* success state */
+    .success-state { text-align:center;padding:20px 0; }
+    .success-state .s-ico { width:72px;height:72px;background:var(--green-100);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--green-400);margin:0 auto 16px; }
+    .success-state h3 { font-size:1.15rem;font-weight:700;margin-bottom:6px; }
+    .success-state p  { font-size:.88rem;color:var(--slate-500); }
+
+    /* ── Sidebar ── */
+    .sidebar { width:var(--sidebar); background:var(--navy-900); min-height:100vh; position:fixed;left:0;top:0; display:flex;flex-direction:column; padding:24px 0;z-index:100; transition:transform var(--transition); }
+    .sidebar-brand { display:flex;align-items:center;gap:10px; padding:0 24px 28px; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .brand-logo-sm { width:36px;height:36px; background:linear-gradient(135deg,var(--gold-400),var(--gold-500)); border-radius:10px;display:flex;align-items:center;justify-content:center; font-size:1.1rem;color:var(--navy-900); }
+    .sidebar-brand span { font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--white); }
+    .sidebar-nav { padding:20px 12px;flex:1;display:flex;flex-direction:column;gap:4px; }
+    .nav-item { display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--slate-400);font-size:.9rem;font-weight:500;transition:all var(--transition);text-decoration:none;cursor:pointer;background:none;border:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif; }
+    .nav-item i { font-size:1.15rem; }
+    .nav-item:hover { background:rgba(255,255,255,.07);color:var(--white); }
+    .nav-item.active { background:linear-gradient(135deg,var(--navy-500),var(--navy-400));color:var(--white);box-shadow:0 4px 16px rgba(30,71,153,.4); }
+    .sidebar-bottom { padding:20px 16px 10px;border-top:1px solid rgba(255,255,255,0.08); }
+    .btn-logout-side { width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;background:rgba(239,68,68,.1);color:#fca5a5;border-radius:10px;font-size:.88rem;font-weight:600;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;text-decoration:none;transition:all var(--transition); }
+    .btn-logout-side:hover { background:rgba(239,68,68,.22);color:#fff; }
+
+    /* ── Mobile Header ── */
+    .mobile-header { display:none;align-items:center;justify-content:space-between;padding:0 16px;height:60px;background:var(--navy-900);position:fixed;top:0;left:0;right:0;z-index:99;box-shadow:0 2px 12px rgba(0,0,0,.2); }
+    .hamburger,.btn-icon-mobile { width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:10px;color:var(--white);font-size:1.2rem;border:none;cursor:pointer;text-decoration:none;transition:background var(--transition); }
+    .hamburger:hover,.btn-icon-mobile:hover { background:rgba(255,255,255,.16); }
+    .mobile-brand { font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--white);display:flex;align-items:center;gap:8px; }
+    .mobile-brand i { color:var(--gold-400); }
+    .sidebar-overlay { position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;backdrop-filter:blur(2px); }
+    .sidebar-overlay.hidden { display:none; }
+
+    /* ── Main Content ── */
+    .main-content { margin-left:var(--sidebar);min-height:100vh;padding:36px;max-width:1080px; }
+    .page-header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px; }
+    .page-header h1 { font-family:'DM Serif Display',serif;font-size:2rem;color:var(--navy-900);line-height:1.2; }
+    .greeting { font-size:.9rem;color:var(--slate-500);font-weight:400;margin-bottom:2px; }
+    .notif-bell { position:relative;width:42px;height:42px;background:var(--white);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--navy-700);cursor:pointer;box-shadow:var(--shadow);transition:all var(--transition); }
+    .notif-bell:hover { transform:translateY(-1px);box-shadow:var(--shadow-hover); }
+    .badge { position:absolute;top:6px;right:6px;width:16px;height:16px;background:var(--red-400);border-radius:50%;font-size:.62rem;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid var(--slate-100); }
+
+    /* ── Balance Cards ── */
+    .cards-row { display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px; }
+    .balance-card { background:linear-gradient(145deg,var(--navy-700) 0%,var(--navy-500) 60%,var(--navy-400) 100%); border-radius:var(--radius);padding:28px;color:var(--white);position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(30,71,153,.4);transition:transform var(--transition),box-shadow var(--transition); }
+    .balance-card:hover { transform:translateY(-3px);box-shadow:0 14px 44px rgba(30,71,153,.5); }
+    .card-chip { width:42px;height:32px;background:linear-gradient(135deg,var(--gold-400),var(--gold-500));border-radius:6px;margin-bottom:24px;position:relative;z-index:1; }
+    .card-chip::after { content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(0,0,0,.15);transform:translateY(-50%); }
+    .card-label { font-size:.78rem;font-weight:500;opacity:.7;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:6px; }
+    .balance-amount { font-family:'DM Serif Display',serif;font-size:2.1rem;letter-spacing:-.5px;margin-bottom:20px; }
+    .card-details { display:flex;justify-content:space-between;font-size:.82rem;opacity:.65; }
+    .card-bg-icon { position:absolute;right:-20px;bottom:-20px;font-size:8rem;opacity:.06;pointer-events:none; }
+    .stat-cards { display:flex;flex-direction:column;gap:14px; }
+    .stat-card { background:var(--white);border-radius:var(--radius-sm);padding:20px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);flex:1;transition:all var(--transition); }
+    .stat-card:hover { transform:translateX(3px);box-shadow:var(--shadow-hover); }
+    .stat-icon { width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0; }
+    .stat-card.income .stat-icon   { background:var(--green-100);color:var(--green-400); }
+    .stat-card.available .stat-icon{ background:#dbeafe;color:#2563eb; }
+    .stat-label { font-size:.78rem;color:var(--slate-400);font-weight:500;display:block;margin-bottom:3px; }
+    .stat-value { font-size:1.1rem;font-weight:700;color:var(--navy-900);display:block; }
+
+    /* ── Section headers ── */
+    .section-hdr { display:flex;justify-content:space-between;align-items:center;margin-bottom:14px; }
+    .section-hdr h3 { font-size:1rem;font-weight:700;color:var(--navy-800); }
+    .see-all { font-size:.83rem;font-weight:600;color:var(--navy-500); }
+
+    /* ── Quick Actions ── */
+    .quick-actions { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px; }
+    .action-btn { background:var(--white);border-radius:var(--radius-sm);padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:var(--shadow);border:none;cursor:pointer;transition:all var(--transition);text-decoration:none;font-family:'DM Sans',sans-serif; }
+    .action-btn:hover { transform:translateY(-4px);box-shadow:var(--shadow-hover); }
+    .action-icon { width:48px;height:48px;background:linear-gradient(135deg,var(--navy-900),var(--navy-600));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--white);transition:all var(--transition); }
+    .action-btn:hover .action-icon { background:linear-gradient(135deg,var(--navy-400),var(--navy-600));box-shadow:0 6px 16px rgba(30,71,153,.4); }
+    .action-btn span { font-size:.82rem;font-weight:600;color:var(--navy-700); }
+
+    /* ── Transactions ── */
+    .txn-list { background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:40px; }
+    .txn-item { display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--slate-100);transition:background var(--transition);animation:fadeInUp .4s ease both; }
+    .txn-item:last-child { border-bottom:none; }
+    .txn-item:hover { background:var(--slate-100); }
+    @keyframes fadeInUp { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .txn-icon { width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0; }
+    .txn-info { flex:1;min-width:0; }
+    .txn-name { font-size:.92rem;font-weight:600;color:var(--navy-900);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .txn-meta { font-size:.78rem;color:var(--slate-400); }
+    .txn-right { text-align:right; }
+    .txn-amount { font-size:.95rem;font-weight:700;white-space:nowrap; }
+    .txn-amount.credit { color:var(--green-400); }
+    .txn-amount.debit  { color:var(--red-400); }
+    .txn-badge { font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:999px; }
+    .txn-badge.completed { background:var(--green-100);color:#166534; }
+    .txn-badge.pending   { background:var(--orange-100);color:#9a3412; }
+    .txn-badge.online    { background:#dbeafe;color:#1e40af; }
+
+    /* ── Toast ── */
+    #toast-container { position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:99999; }
+    .toast { display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:.88rem;font-weight:500;font-family:'DM Sans',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:280px;max-width:360px;animation:slideInR .4s cubic-bezier(.34,1.56,.64,1);border-left:4px solid transparent; }
+    @keyframes slideInR { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideOutR { from{transform:translateX(0);opacity:1} to{transform:translateX(120%);opacity:0} }
+    .toast.success { background:#f0fdf4;color:#166534;border-left-color:var(--green-400); }
+    .toast.info    { background:#eff6ff;color:#1e40af;border-left-color:var(--navy-400); }
+    .toast.error   { background:#fef2f2;color:#991b1b;border-left-color:var(--red-400); }
+    .toast i { font-size:1.1rem;flex-shrink:0; }
+    .toast-out { animation:slideOutR .3s ease forwards; }
+
+    /* ── Responsive ── */
+    @media(max-width:1024px) { .cards-row { grid-template-columns:1fr; } .stat-cards { flex-direction:row; } }
+    @media(max-width:768px) {
+      .sidebar { transform:translateX(-100%);z-index:200; }
+      .sidebar.open { transform:translateX(0); }
+      .mobile-header { display:flex; }
+      .main-content { margin-left:0;padding:80px 16px 24px; }
+      .quick-actions { grid-template-columns:repeat(2,1fr); }
+      .stat-cards { flex-direction:column; }
+      .slide-panel { width:100vw; }
+      .field-row { grid-template-columns:1fr; }
+      .biller-grid { grid-template-columns:1fr; }
+    }
+    @media(max-width:480px) { .quick-actions { gap:10px; } .page-header h1 { font-size:1.5rem; } }
+  </style>
+</head>
+<body>
+
+  <!-- Session Timeout Modal -->
+  <div class="modal-overlay hidden" id="session-modal">
+    <div class="modal-card">
+      <div class="modal-icon"><i class="ph-fill ph-clock-countdown"></i></div>
+      <h3>Session Expiring Soon</h3>
+      <p>Your session will expire in <span id="session-countdown">60</span> seconds due to inactivity.</p>
+      <div class="modal-actions">
+        <a href="/logout" class="btn-modal-secondary">Log Out</a>
+        <button class="btn-modal-primary" onclick="extendSession()">Stay Logged In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Backdrop -->
+  <div class="panel-backdrop" id="panel-backdrop" onclick="closeAllPanels()"></div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL 1 — TRANSFER
+  ═══════════════════════════════════════════ -->
+  <div class="slide-panel" id="panel-transfer">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-icon" style="background:#dbeafe;color:#2563eb"><i class="ph-fill ph-arrows-left-right"></i></div>
+        <div>
+          <h2>Transfer Money</h2>
+          <p>Send funds securely</p>
+        </div>
+      </div>
+      <button class="panel-close" onclick="closeAllPanels()"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div class="panel-body" id="transfer-form-view">
+      <!-- Balance pill -->
+      <div class="amount-display">
+        <div><div class="lbl">Available Balance</div><div class="val">${{ "%.2f"|format(account.available_balance) }}</div></div>
+        <i class="ph-fill ph-wallet" style="font-size:2rem;color:rgba(255,255,255,.3)"></i>
+      </div>
+
+      <div class="form-section-title"><i class="ph ph-user"></i> Recipient Details</div>
+
+      <div class="field">
+        <label>Transfer To</label>
+        <div class="field-wrap">
+          <i class="ph ph-bank field-ico"></i>
+          <select id="tf-bank">
+            <option value="">Select bank / wallet</option>
+            <option>SecureBank Account</option>
+            <option>Another Bank (NEFT / IMPS)</option>
+            <option>UPI ID</option>
+            <option>PayPal</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Recipient Account / UPI ID</label>
+        <div class="field-wrap">
+          <i class="ph ph-identification-card field-ico"></i>
+          <input type="text" id="tf-acc" placeholder="Account number or UPI ID" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Recipient Name</label>
+          <div class="field-wrap">
+            <i class="ph ph-user field-ico"></i>
+            <input type="text" id="tf-name" placeholder="Full name" />
+          </div>
+        </div>
+        <div class="field">
+          <label>IFSC / Routing</label>
+          <div class="field-wrap">
+            <i class="ph ph-hash field-ico"></i>
+            <input type="text" id="tf-ifsc" placeholder="e.g. HDFC0001234" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section-title" style="margin-top:8px"><i class="ph ph-currency-dollar"></i> Amount & Note</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Amount ($)</label>
+          <div class="field-wrap">
+            <i class="ph ph-currency-dollar field-ico"></i>
+            <input type="number" id="tf-amount" placeholder="0.00" min="1" step="0.01" oninput="updateTransferPreview()" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Transfer Type</label>
+          <div class="field-wrap">
+            <i class="ph ph-lightning field-ico"></i>
+            <select id="tf-type">
+              <option>Instant (IMPS)</option>
+              <option>Standard (NEFT)</option>
+              <option>Scheduled (RTGS)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Note / Remarks</label>
+        <div class="field-wrap">
+          <i class="ph ph-note field-ico"></i>
+          <input type="text" id="tf-note" placeholder="Optional note to recipient" />
+        </div>
+      </div>
+
+      <div id="tf-preview" style="display:none;margin-bottom:4px">
+        <div class="info-row"><span class="key">You Send</span><span class="val" id="tf-prev-amount">—</span></div>
+        <div class="info-row"><span class="key">Fee</span><span class="val">$0.00</span></div>
+        <div class="info-row"><span class="key">Recipient Gets</span><span class="val" id="tf-prev-recv">—</span></div>
+      </div>
+    </div>
+
+    <!-- Success state (hidden initially) -->
+    <div class="panel-body success-state" id="transfer-success-view" style="display:none">
+      <div class="s-ico"><i class="ph-fill ph-check-circle"></i></div>
+      <h3>Transfer Initiated!</h3>
+      <p id="tf-success-msg">Your transfer is being processed securely.</p>
+      <div style="margin-top:24px">
+        <div class="info-row"><span class="key">Reference No.</span><span class="val" id="tf-ref">—</span></div>
+        <div class="info-row"><span class="key">Status</span><span class="val" style="color:var(--green-400)">Processing</span></div>
+        <div class="info-row"><span class="key">Est. Arrival</span><span class="val">Within 30 minutes</span></div>
+      </div>
+    </div>
+
+    <div class="panel-footer" id="transfer-footer">
+      <button class="btn-secondary" onclick="closeAllPanels()">Cancel</button>
+      <button class="btn-primary" onclick="submitTransfer()"><i class="ph ph-paper-plane-tilt"></i> Send Money</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL 2 — PAY BILLS
+  ═══════════════════════════════════════════ -->
+  <div class="slide-panel" id="panel-bills">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-icon" style="background:#fef9c3;color:#ca8a04"><i class="ph-fill ph-receipt"></i></div>
+        <div>
+          <h2>Pay Bills</h2>
+          <p>Utilities, subscriptions & more</p>
+        </div>
+      </div>
+      <button class="panel-close" onclick="closeAllPanels()"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div class="panel-body" id="bills-form-view">
+      <!-- Category chips -->
+      <div class="form-section-title"><i class="ph ph-squares-four"></i> Select Category</div>
+      <div class="tab-row">
+        <button class="chip active" onclick="selectBillerCat(this,'utilities')">Utilities</button>
+        <button class="chip" onclick="selectBillerCat(this,'telecom')">Telecom</button>
+        <button class="chip" onclick="selectBillerCat(this,'streaming')">Streaming</button>
+        <button class="chip" onclick="selectBillerCat(this,'insurance')">Insurance</button>
+        <button class="chip" onclick="selectBillerCat(this,'loans')">Loans</button>
+      </div>
+
+      <!-- Biller grid (swapped by JS) -->
+      <div class="biller-grid" id="biller-grid">
+        <div class="biller-card selected" onclick="selectBiller(this,'Electricity Board')">
+          <div class="b-ico" style="background:#fef9c3;color:#ca8a04"><i class="ph-fill ph-lightning"></i></div>
+          <div><div class="b-name">Electricity</div><div class="b-type">Utility</div></div>
+        </div>
+        <div class="biller-card" onclick="selectBiller(this,'Water Supply')">
+          <div class="b-ico" style="background:#dbeafe;color:#2563eb"><i class="ph-fill ph-drop"></i></div>
+          <div><div class="b-name">Water</div><div class="b-type">Utility</div></div>
+        </div>
+        <div class="biller-card" onclick="selectBiller(this,'Gas Connection')">
+          <div class="b-ico" style="background:#ffedd5;color:#ea580c"><i class="ph-fill ph-flame"></i></div>
+          <div><div class="b-name">Gas</div><div class="b-type">Utility</div></div>
+        </div>
+        <div class="biller-card" onclick="selectBiller(this,'Broadband Internet')">
+          <div class="b-ico" style="background:#f3e8ff;color:#7c3aed"><i class="ph-fill ph-wifi-high"></i></div>
+          <div><div class="b-name">Internet</div><div class="b-type">Utility</div></div>
+        </div>
+      </div>
+
+      <div class="form-section-title"><i class="ph ph-file-text"></i> Bill Details</div>
+
+      <div class="field">
+        <label>Biller / Service</label>
+        <div class="field-wrap">
+          <i class="ph ph-buildings field-ico"></i>
+          <input type="text" id="bill-biller" placeholder="Biller name" readonly />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Consumer / Account No.</label>
+          <div class="field-wrap">
+            <i class="ph ph-identification-card field-ico"></i>
+            <input type="text" id="bill-acc" placeholder="Consumer number" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Amount ($)</label>
+          <div class="field-wrap">
+            <i class="ph ph-currency-dollar field-ico"></i>
+            <input type="number" id="bill-amount" placeholder="0.00" min="1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Payment Method</label>
+        <div class="field-wrap">
+          <i class="ph ph-credit-card field-ico"></i>
+          <select>
+            <option>SecureBank Checking — ****5678</option>
+            <option>UPI Auto-pay</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-body success-state" id="bills-success-view" style="display:none">
+      <div class="s-ico"><i class="ph-fill ph-check-circle"></i></div>
+      <h3>Bill Payment Successful!</h3>
+      <p id="bill-success-msg">Your payment has been processed.</p>
+      <div style="margin-top:24px">
+        <div class="info-row"><span class="key">Transaction ID</span><span class="val" id="bill-ref">—</span></div>
+        <div class="info-row"><span class="key">Status</span><span class="val" style="color:var(--green-400)">Confirmed</span></div>
+        <div class="info-row"><span class="key">Receipt</span><span class="val" style="color:var(--navy-500);cursor:pointer">Download PDF</span></div>
+      </div>
+    </div>
+
+    <div class="panel-footer" id="bills-footer">
+      <button class="btn-secondary" onclick="closeAllPanels()">Cancel</button>
+      <button class="btn-primary" onclick="submitBill()"><i class="ph ph-paper-plane-tilt"></i> Pay Now</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL 3 — STATEMENTS
+  ═══════════════════════════════════════════ -->
+  <div class="slide-panel" id="panel-statements">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-icon" style="background:#dcfce7;color:#16a34a"><i class="ph-fill ph-files"></i></div>
+        <div>
+          <h2>Statements</h2>
+          <p>Download your account history</p>
+        </div>
+      </div>
+      <button class="panel-close" onclick="closeAllPanels()"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div class="panel-body">
+      <!-- Filter -->
+      <div class="form-section-title"><i class="ph ph-funnel"></i> Filter Period</div>
+      <div class="tab-row">
+        <button class="chip active" onclick="filterStmt(this,'3m')">Last 3 Months</button>
+        <button class="chip" onclick="filterStmt(this,'6m')">6 Months</button>
+        <button class="chip" onclick="filterStmt(this,'1y')">1 Year</button>
+        <button class="chip" onclick="filterStmt(this,'custom')">Custom</button>
+      </div>
+
+      <!-- Custom range (hidden) -->
+      <div id="stmt-custom" style="display:none">
+        <div class="field-row" style="margin-bottom:20px">
+          <div class="field">
+            <label>From</label>
+            <div class="field-wrap"><i class="ph ph-calendar field-ico"></i><input type="date" /></div>
+          </div>
+          <div class="field">
+            <label>To</label>
+            <div class="field-wrap"><i class="ph ph-calendar field-ico"></i><input type="date" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section-title"><i class="ph ph-file-pdf"></i> Available Statements</div>
+
+      <div id="stmt-list">
+        <div class="stmt-item" onclick="downloadStmt('Feb 2026')">
+          <div class="stmt-icon"><i class="ph-fill ph-file-pdf"></i></div>
+          <div class="stmt-info">
+            <div class="stmt-name">February 2026 Statement</div>
+            <div class="stmt-sub">Checking • 12 transactions • Feb 1 – Feb 28</div>
+          </div>
+          <span class="stmt-dl"><i class="ph ph-download-simple"></i> PDF</span>
+        </div>
+        <div class="stmt-item" onclick="downloadStmt('Jan 2026')">
+          <div class="stmt-icon"><i class="ph-fill ph-file-pdf"></i></div>
+          <div class="stmt-info">
+            <div class="stmt-name">January 2026 Statement</div>
+            <div class="stmt-sub">Checking • 18 transactions • Jan 1 – Jan 31</div>
+          </div>
+          <span class="stmt-dl"><i class="ph ph-download-simple"></i> PDF</span>
+        </div>
+        <div class="stmt-item" onclick="downloadStmt('Dec 2025')">
+          <div class="stmt-icon"><i class="ph-fill ph-file-pdf"></i></div>
+          <div class="stmt-info">
+            <div class="stmt-name">December 2025 Statement</div>
+            <div class="stmt-sub">Checking • 22 transactions • Dec 1 – Dec 31</div>
+          </div>
+          <span class="stmt-dl"><i class="ph ph-download-simple"></i> PDF</span>
+        </div>
+        <div class="stmt-item" onclick="downloadStmt('Nov 2025')">
+          <div class="stmt-icon"><i class="ph-fill ph-file-pdf"></i></div>
+          <div class="stmt-info">
+            <div class="stmt-name">November 2025 Statement</div>
+            <div class="stmt-sub">Checking • 9 transactions • Nov 1 – Nov 30</div>
+          </div>
+          <span class="stmt-dl"><i class="ph ph-download-simple"></i> PDF</span>
+        </div>
+      </div>
+
+      <div class="form-section-title" style="margin-top:24px"><i class="ph ph-envelope"></i> Email Statement</div>
+      <div class="field">
+        <label>Send to Email</label>
+        <div class="field-wrap">
+          <i class="ph ph-envelope-simple field-ico"></i>
+          <input type="email" id="stmt-email" placeholder="alice@example.com" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button class="btn-secondary" onclick="closeAllPanels()">Close</button>
+      <button class="btn-primary" onclick="emailStatement()"><i class="ph ph-envelope-simple"></i> Email Statement</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL 4 — SETTINGS
+  ═══════════════════════════════════════════ -->
+  <div class="slide-panel" id="panel-settings">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-icon" style="background:var(--slate-200);color:var(--navy-700)"><i class="ph-fill ph-gear"></i></div>
+        <div>
+          <h2>Settings</h2>
+          <p>Manage your account preferences</p>
+        </div>
+      </div>
+      <button class="panel-close" onclick="closeAllPanels()"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div class="panel-body">
+
+      <!-- Profile -->
+      <div class="form-section-title"><i class="ph ph-user-circle"></i> Profile</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Full Name</label>
+          <div class="field-wrap"><i class="ph ph-user field-ico"></i><input type="text" value="{{ account.customer_name }}" /></div>
+        </div>
+        <div class="field">
+          <label>Account Type</label>
+          <div class="field-wrap"><i class="ph ph-credit-card field-ico"></i><input type="text" value="{{ account.account_type }}" readonly /></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <div class="field-wrap"><i class="ph ph-envelope field-ico"></i><input type="email" placeholder="alice@example.com" /></div>
+      </div>
+      <div class="field">
+        <label>Phone Number</label>
+        <div class="field-wrap"><i class="ph ph-phone field-ico"></i><input type="tel" placeholder="+1 (555) 000-0000" /></div>
+      </div>
+
+      <!-- Security -->
+      <div class="form-section-title" style="margin-top:8px"><i class="ph ph-shield-check"></i> Security</div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#dcfce7;color:var(--green-400)"><i class="ph-fill ph-fingerprint"></i></div>
+          <div><div class="setting-name">Biometric Login</div><div class="setting-desc">Use fingerprint or Face ID</div></div>
+        </div>
+        <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div></label>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#dbeafe;color:#2563eb"><i class="ph-fill ph-device-mobile"></i></div>
+          <div><div class="setting-name">Two-Factor Auth (2FA)</div><div class="setting-desc">SMS OTP on every login</div></div>
+        </div>
+        <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div></label>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#fef9c3;color:#ca8a04"><i class="ph-fill ph-lock-key"></i></div>
+          <div><div class="setting-name">Change Password</div><div class="setting-desc">Update your login password</div></div>
+        </div>
+        <button onclick="showPwForm()" style="background:var(--slate-200);border:none;padding:7px 14px;border-radius:8px;font-size:.82rem;font-weight:600;color:var(--navy-700);cursor:pointer;">Change</button>
+      </div>
+
+      <!-- Change password mini form -->
+      <div id="pw-form" style="display:none;background:var(--slate-100);border-radius:12px;padding:16px;margin-top:4px;margin-bottom:4px">
+        <div class="field" style="margin-bottom:10px">
+          <label>Current Password</label>
+          <div class="field-wrap"><i class="ph ph-lock field-ico"></i><input type="password" placeholder="Current password" /></div>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>New Password</label>
+          <div class="field-wrap"><i class="ph ph-lock-open field-ico"></i><input type="password" placeholder="New password" /></div>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Confirm New Password</label>
+          <div class="field-wrap"><i class="ph ph-lock-open field-ico"></i><input type="password" placeholder="Confirm new password" /></div>
+        </div>
+        <button class="btn-primary" style="width:100%;margin-top:4px" onclick="savePassword()"><i class="ph ph-floppy-disk"></i> Update Password</button>
+      </div>
+
+      <!-- Notifications -->
+      <div class="form-section-title" style="margin-top:8px"><i class="ph ph-bell"></i> Notifications</div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#f3e8ff;color:#7c3aed"><i class="ph-fill ph-envelope-simple"></i></div>
+          <div><div class="setting-name">Email Alerts</div><div class="setting-desc">Transactions & account updates</div></div>
+        </div>
+        <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div></label>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#ffedd5;color:#ea580c"><i class="ph-fill ph-bell-ringing"></i></div>
+          <div><div class="setting-name">Push Notifications</div><div class="setting-desc">Real-time transaction alerts</div></div>
+        </div>
+        <label class="toggle"><input type="checkbox" /><div class="toggle-track"></div></label>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">
+          <div class="setting-ico" style="background:#dcfce7;color:var(--green-400)"><i class="ph-fill ph-chat-circle"></i></div>
+          <div><div class="setting-name">SMS Alerts</div><div class="setting-desc">Text message notifications</div></div>
+        </div>
+        <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div></label>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="form-section-title" style="margin-top:8px"><i class="ph ph-warning-circle"></i> Account</div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn-danger" style="flex:1" onclick="showToast('Account freeze request submitted','info')"><i class="ph ph-snowflake"></i> Freeze Account</button>
+        <button class="btn-danger" style="flex:1" onclick="showToast('A representative will contact you','info')"><i class="ph ph-x-circle"></i> Close Account</button>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button class="btn-secondary" onclick="closeAllPanels()">Cancel</button>
+      <button class="btn-primary" onclick="saveSettings()"><i class="ph ph-floppy-disk"></i> Save Changes</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo-sm"><i class="ph-fill ph-vault"></i></div>
+      <span>SecureBank</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-item active"><i class="ph ph-squares-four"></i><span>Dashboard</span></a>
+      <button class="nav-item" onclick="openPanel('transfer')"><i class="ph ph-arrows-left-right"></i><span>Transfer</span></button>
+      <button class="nav-item" onclick="openPanel('bills')"><i class="ph ph-receipt"></i><span>Pay Bills</span></button>
+      <button class="nav-item" onclick="openPanel('statements')"><i class="ph ph-files"></i><span>Statements</span></button>
+      <button class="nav-item" onclick="openPanel('settings')"><i class="ph ph-gear"></i><span>Settings</span></button>
+    </nav>
+    <div class="sidebar-bottom">
+      <a href="/logout" class="btn-logout-side"><i class="ph ph-sign-out"></i> Log Out</a>
+    </div>
+  </aside>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <button class="hamburger" onclick="toggleSidebar()"><i class="ph ph-list"></i></button>
+    <div class="mobile-brand"><i class="ph-fill ph-vault"></i> SecureBank</div>
+    <a href="/logout" class="btn-icon-mobile"><i class="ph ph-sign-out"></i></a>
+  </header>
+  <div class="sidebar-overlay hidden" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <p class="greeting" id="greeting-text">Good day,</p>
+        <h1>{{ account.customer_name }}</h1>
+      </div>
+      <div class="notif-bell">
+        <i class="ph ph-bell"></i>
+        <span class="badge">1</span>
+      </div>
+    </div>
+
+    <!-- Balance + Stats -->
+    <div class="cards-row">
+      <div class="balance-card">
+        <div class="card-chip"></div>
+        <span class="card-label">{{ account.account_type }} Account</span>
+        <div class="balance-amount">${{ "%.2f"|format(account.balance) }}</div>
+        <div class="card-details">
+          <span>Account {{ account.account_number }}</span>
+          <span>VISA</span>
+        </div>
+        <div class="card-bg-icon"><i class="ph-fill ph-credit-card"></i></div>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card income">
+          <div class="stat-icon"><i class="ph-fill ph-trend-up"></i></div>
+          <div><span class="stat-label">Current Balance</span><span class="stat-value">${{ "%.2f"|format(account.balance) }}</span></div>
+        </div>
+        <div class="stat-card available">
+          <div class="stat-icon"><i class="ph-fill ph-wallet"></i></div>
+          <div><span class="stat-label">Available Balance</span><span class="stat-value">${{ "%.2f"|format(account.available_balance) }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions — all 4 open panels -->
+    <div class="section-hdr"><h3>Quick Actions</h3></div>
+    <div class="quick-actions">
+      <button class="action-btn" onclick="openPanel('transfer')">
+        <div class="action-icon"><i class="ph-fill ph-arrows-left-right"></i></div>
+        <span>Transfer</span>
+      </button>
+      <button class="action-btn" onclick="openPanel('bills')">
+        <div class="action-icon"><i class="ph-fill ph-receipt"></i></div>
+        <span>Pay Bills</span>
+      </button>
+      <button class="action-btn" onclick="openPanel('statements')">
+        <div class="action-icon"><i class="ph-fill ph-files"></i></div>
+        <span>Statements</span>
+      </button>
+      <button class="action-btn" onclick="openPanel('settings')">
+        <div class="action-icon"><i class="ph-fill ph-gear"></i></div>
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <!-- Transactions -->
+    <div class="section-hdr">
+      <h3>Recent Transactions</h3>
+      <a href="#" class="see-all" onclick="openPanel('statements');return false;">See all</a>
+    </div>
+    <div class="txn-list">
+      {% if transactions %}
+        {% set icon_map = {
+          'Salary Deposit':       ('ph-money',        '#dcfce7','#16a34a'),
+          'Whole Foods':          ('ph-shopping-cart', '#ffedd5','#ea580c'),
+          'Netflix Subscription': ('ph-television',    '#f3e8ff','#7c3aed'),
+          'Amazon':               ('ph-shopping-bag',  '#fef9c3','#ca8a04'),
+          'Uber':                 ('ph-car',           '#dbeafe','#2563eb'),
+          'Starbucks':            ('ph-coffee',        '#fef9c3','#ca8a04'),
+          'Walmart':              ('ph-storefront',    '#dcfce7','#16a34a'),
+          'Target':               ('ph-storefront',    '#fee2e2','#dc2626'),
+          'Shell':                ('ph-gas-pump',      '#ffedd5','#ea580c')
+        } %}
+        {% for txn in transactions %}
+        {% set is_credit = txn.amount > 0 %}
+        {% set icon_data = icon_map.get(txn.description, ('ph-arrows-left-right','#e0f2fe','#0284c7')) %}
+        <div class="txn-item" style="animation-delay:{{ loop.index0 * 60 }}ms">
+          <div class="txn-icon" style="background:{{ icon_data[1] }};color:{{ icon_data[2] }}">
+            <i class="ph {{ icon_data[0] }}"></i>
+          </div>
+          <div class="txn-info">
+            <div class="txn-name">{{ txn.description }}</div>
+            <div class="txn-meta">{{ txn.date }} · {{ txn.type }}</div>
+          </div>
+          <div class="txn-right">
+            <div class="txn-amount {{ 'credit' if is_credit else 'debit' }}">
+              {{ '+' if is_credit else '' }}${{ "%.2f"|format(txn.amount|abs) }}
+            </div>
+            <span class="txn-badge {{ txn.status.lower() if txn.status.lower() in ['completed','pending'] else 'online' }}">
+              {{ txn.status }}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding:32px;text-align:center;color:var(--slate-400);">
+          <i class="ph ph-clock-clockwise" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+          No transactions to display.
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+
+  <script>
+    /* ── Greeting ── */
+    (function(){
+      const h = new Date().getHours();
+      let g = 'Good morning,';
+      if (h >= 12 && h < 17) g = 'Good afternoon,';
+      else if (h >= 17) g = 'Good evening,';
+      document.getElementById('greeting-text').textContent = g;
+    })();
+
+    /* ── Panel System ── */
+    function openPanel(name) {
+      closeAllPanels();
+      document.getElementById('panel-' + name).classList.add('active');
+      document.getElementById('panel-backdrop').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeAllPanels() {
+      document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-backdrop').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPanels(); });
+
+    /* ── Transfer ── */
+    function updateTransferPreview() {
+      const amt = parseFloat(document.getElementById('tf-amount').value);
+      const preview = document.getElementById('tf-preview');
+      if (amt && amt > 0) {
+        preview.style.display = 'block';
+        document.getElementById('tf-prev-amount').textContent = '$' + amt.toFixed(2);
+        document.getElementById('tf-prev-recv').textContent  = '$' + amt.toFixed(2);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    function submitTransfer() {
+      const bank   = document.getElementById('tf-bank').value;
+      const acc    = document.getElementById('tf-acc').value.trim();
+      const name   = document.getElementById('tf-name').value.trim();
+      const amount = document.getElementById('tf-amount').value;
+
+      if (!bank)   { showToast('Please select a bank or wallet', 'error'); return; }
+      if (!acc)    { showToast('Please enter recipient account / UPI ID', 'error'); return; }
+      if (!name)   { showToast('Please enter recipient name', 'error'); return; }
+      if (!amount || parseFloat(amount) <= 0) { showToast('Please enter a valid amount', 'error'); return; }
+
+      const ref = 'TXN' + Date.now().toString().slice(-8).toUpperCase();
+      document.getElementById('tf-ref').textContent = ref;
+      document.getElementById('tf-success-msg').textContent =
+        '$' + parseFloat(amount).toFixed(2) + ' sent to ' + name + ' successfully.';
+
+      document.getElementById('transfer-form-view').style.display = 'none';
+      document.getElementById('transfer-success-view').style.display = 'flex';
+      document.getElementById('transfer-success-view').style.flexDirection = 'column';
+      document.getElementById('transfer-success-view').style.justifyContent = 'center';
+      document.getElementById('transfer-footer').innerHTML =
+        '<button class="btn-primary" style="width:100%" onclick="resetTransfer()"><i class="ph ph-plus"></i> New Transfer</button>';
+      showToast('Transfer initiated successfully!', 'success');
+    }
+
+    function resetTransfer() {
+      document.getElementById('transfer-form-view').style.display = 'block';
+      document.getElementById('transfer-success-view').style.display = 'none';
+      document.getElementById('transfer-footer').innerHTML =
+        '<button class="btn-secondary" onclick="closeAllPanels()">Cancel</button>' +
+        '<button class="btn-primary" onclick="submitTransfer()"><i class="ph ph-paper-plane-tilt"></i> Send Money</button>';
+      ['tf-bank','tf-acc','tf-name','tf-ifsc','tf-amount','tf-note','tf-type'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.tagName === 'SELECT' ? (el.selectedIndex = 0) : (el.value = ''); }
+      });
+      document.getElementById('tf-preview').style.display = 'none';
+    }
+
+    /* ── Bills ── */
+    const billerCats = {
+      utilities: [
+        { name:'Electricity', type:'Utility', ico:'ph-lightning', bg:'#fef9c3', col:'#ca8a04' },
+        { name:'Water',       type:'Utility', ico:'ph-drop',      bg:'#dbeafe', col:'#2563eb' },
+        { name:'Gas',         type:'Utility', ico:'ph-flame',     bg:'#ffedd5', col:'#ea580c' },
+        { name:'Internet',    type:'Utility', ico:'ph-wifi-high', bg:'#f3e8ff', col:'#7c3aed' },
+      ],
+      telecom: [
+        { name:'Mobile Prepaid', type:'Telecom', ico:'ph-device-mobile', bg:'#dbeafe', col:'#2563eb' },
+        { name:'Mobile Postpaid',type:'Telecom', ico:'ph-phone',          bg:'#dcfce7', col:'#16a34a' },
+        { name:'Broadband',      type:'Telecom', ico:'ph-wifi-high',      bg:'#f3e8ff', col:'#7c3aed' },
+        { name:'DTH / Cable',    type:'Telecom', ico:'ph-television',     bg:'#ffedd5', col:'#ea580c' },
+      ],
+      streaming: [
+        { name:'Netflix',   type:'Streaming', ico:'ph-television',   bg:'#fee2e2', col:'#dc2626' },
+        { name:'Spotify',   type:'Streaming', ico:'ph-music-notes',  bg:'#dcfce7', col:'#16a34a' },
+        { name:'Amazon Prime',type:'Streaming',ico:'ph-shopping-bag', bg:'#fef9c3', col:'#ca8a04' },
+        { name:'Disney+',   type:'Streaming', ico:'ph-star',         bg:'#dbeafe', col:'#2563eb' },
+      ],
+      insurance: [
+        { name:'Health Insurance', type:'Insurance', ico:'ph-heart',       bg:'#fee2e2', col:'#dc2626' },
+        { name:'Life Insurance',   type:'Insurance', ico:'ph-shield-check', bg:'#dcfce7', col:'#16a34a' },
+        { name:'Car Insurance',    type:'Insurance', ico:'ph-car',          bg:'#dbeafe', col:'#2563eb' },
+        { name:'Home Insurance',   type:'Insurance', ico:'ph-house',        bg:'#ffedd5', col:'#ea580c' },
+      ],
+      loans: [
+        { name:'Home Loan',     type:'Loan', ico:'ph-house-line',       bg:'#dbeafe', col:'#2563eb' },
+        { name:'Car Loan',      type:'Loan', ico:'ph-car',              bg:'#fef9c3', col:'#ca8a04' },
+        { name:'Personal Loan', type:'Loan', ico:'ph-user',             bg:'#f3e8ff', col:'#7c3aed' },
+        { name:'Credit Card',   type:'Loan', ico:'ph-credit-card',      bg:'#ffedd5', col:'#ea580c' },
+      ],
+    };
+
+    function selectBillerCat(btn, cat) {
+      document.querySelectorAll('#panel-bills .chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const grid = document.getElementById('biller-grid');
+      grid.innerHTML = billerCats[cat].map((b,i) =>
+        `<div class="biller-card${i===0?' selected':''}" onclick="selectBiller(this,'${b.name} (${b.type})')">
+          <div class="b-ico" style="background:${b.bg};color:${b.col}"><i class="ph-fill ${b.ico}"></i></div>
+          <div><div class="b-name">${b.name}</div><div class="b-type">${b.type}</div></div>
+        </div>`
+      ).join('');
+      selectBiller(grid.querySelector('.selected'), billerCats[cat][0].name);
+    }
+
+    function selectBiller(el, name) {
+      document.querySelectorAll('.biller-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('bill-biller').value = name;
+    }
+
+    // Pre-fill first biller
+    document.getElementById('bill-biller').value = 'Electricity Board';
+
+    function submitBill() {
+      const biller = document.getElementById('bill-biller').value;
+      const acc    = document.getElementById('bill-acc').value.trim();
+      const amount = document.getElementById('bill-amount').value;
+
+      if (!acc)    { showToast('Please enter consumer / account number', 'error'); return; }
+      if (!amount || parseFloat(amount) <= 0) { showToast('Please enter a valid amount', 'error'); return; }
+
+      const ref = 'BILL' + Date.now().toString().slice(-8).toUpperCase();
+      document.getElementById('bill-ref').textContent = ref;
+      document.getElementById('bill-success-msg').textContent =
+        '$' + parseFloat(amount).toFixed(2) + ' paid to ' + biller + '.';
+
+      document.getElementById('bills-form-view').style.display = 'none';
+      document.getElementById('bills-success-view').style.display = 'flex';
+      document.getElementById('bills-success-view').style.flexDirection = 'column';
+      document.getElementById('bills-success-view').style.justifyContent = 'center';
+      document.getElementById('bills-footer').innerHTML =
+        '<button class="btn-primary" style="width:100%" onclick="resetBills()"><i class="ph ph-plus"></i> Pay Another Bill</button>';
+      showToast('Bill paid successfully!', 'success');
+    }
+
+    function resetBills() {
+      document.getElementById('bills-form-view').style.display = 'block';
+      document.getElementById('bills-success-view').style.display = 'none';
+      document.getElementById('bills-footer').innerHTML =
+        '<button class="btn-secondary" onclick="closeAllPanels()">Cancel</button>' +
+        '<button class="btn-primary" onclick="submitBill()"><i class="ph ph-paper-plane-tilt"></i> Pay Now</button>';
+      document.getElementById('bill-acc').value = '';
+      document.getElementById('bill-amount').value = '';
+    }
+
+    /* ── Statements ── */
+    function filterStmt(btn, period) {
+      document.querySelectorAll('#panel-statements .chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('stmt-custom').style.display = period === 'custom' ? 'block' : 'none';
+    }
+
+    function downloadStmt(period) {
+      showToast('Downloading ' + period + ' statement…', 'info');
+    }
+
+    function emailStatement() {
+      const email = document.getElementById('stmt-email').value.trim();
+      if (!email || !email.includes('@')) { showToast('Please enter a valid email address', 'error'); return; }
+      showToast('Statement sent to ' + email, 'success');
+    }
+
+    /* ── Settings ── */
+    function showPwForm() {
+      const f = document.getElementById('pw-form');
+      f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function savePassword() {
+      showToast('Password updated successfully!', 'success');
+      document.getElementById('pw-form').style.display = 'none';
+    }
+
+    function saveSettings() {
+      showToast('Settings saved successfully!', 'success');
+      setTimeout(closeAllPanels, 1200);
+    }
+
+    /* ── Session timeout ── */
+    let sessionTimer, countdownTimer;
+    const EVENTS = ['mousemove','keydown','click','scroll'];
+
+    function resetTimer() {
+      clearTimeout(sessionTimer);
+      clearInterval(countdownTimer);
+      document.getElementById('session-modal').classList.add('hidden');
+      sessionTimer = setTimeout(showWarning, 4 * 60 * 1000);
+    }
+    function showWarning() {
+      document.getElementById('session-modal').classList.remove('hidden');
+      let secs = 60;
+      document.getElementById('session-countdown').textContent = secs;
+      countdownTimer = setInterval(() => {
+        secs--;
+        document.getElementById('session-countdown').textContent = secs;
+        if (secs <= 0) { clearInterval(countdownTimer); window.location.href = '/logout'; }
+      }, 1000);
+    }
+    function extendSession() { resetTimer(); showToast('Session extended!', 'success'); }
+    EVENTS.forEach(e => document.addEventListener(e, resetTimer));
+    resetTimer();
+
+    /* ── Sidebar (mobile) ── */
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('hidden');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.add('hidden');
+    }
+
+    /* ── Toast ── */
+    function showToast(msg, type='info', dur=3500) {
+      const icons = { success:'ph-check-circle', info:'ph-info', error:'ph-warning-circle' };
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.innerHTML = '<i class="ph-fill ' + (icons[type]||'ph-info') + '"></i><span>' + msg + '</span>';
+      c.appendChild(t);
+      setTimeout(() => { t.classList.add('toast-out'); setTimeout(()=>t.remove(),350); }, dur);
+    }
+  </script>
+</body>
+</html>
